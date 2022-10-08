@@ -1,52 +1,52 @@
 *ORIGINAL DATASET
-import delimited "/Users/areaximus/Downloads/LE at birth 2015 to 2019.csv", varnames(3) numericcols(3 4) clear 
-save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+import delimited "/Users/maxvo/Downloads/LE at birth 2015 to 2019.csv", varnames(3) numericcols(3 4) clear 
+save "/Users/maxvo/Documents/Job applications stuff/WPI.dta", replace
 
 
 *CLASSIFYING MSOA BY RURAL OR URBAN
 *source https://www.data.gov.uk/dataset/9c0e093d-d267-4eb8-90d8-54475ab4d1ff/rural-urban-classification-2011-of-middle-layer-super-output-areas-in-england-and-wales
 
-import delimited "/Users/areaximus/Downloads/Rural_Urban_Classification_(2011)_of_Middle_Layer_Super_Output_Areas_in_England_and_Wales.csv", clear 
+import delimited "/Users/maxvo/Downloads/Rural_Urban_Classification_(2011)_of_Middle_Layer_Super_Output_Areas_in_England_and_Wales.csv", clear 
 rename msoa11cd code
 rename msoa11nm label
-merge 1:1 code label using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
-save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+merge 1:1 code label using "/Users/maxvo/Documents/Job applications stuff/WPI.dta", nogenerate
+save "/Users/maxvo/Documents/Job applications stuff/WPI.dta", replace
 
 
 *CLASSIFYING MSOA BY REGION AND SUBGROUP 
 *source https://geoportal.statistics.gov.uk/datasets/fe6c55f0924b4734adf1cf7104a0173e_0/explore
 
-import delimited "/Users/areaximus/Downloads/Output_Area_to_LSOA_to_MSOA_to_Local_Authority_District_(December_2017)_Lookup_with_Area_Classifications_in_Great_Britain.csv", clear 
+import delimited "/Users/maxvo/Downloads/Output_Area_to_LSOA_to_MSOA_to_Local_Authority_District_(December_2017)_Lookup_with_Area_Classifications_in_Great_Britain.csv", clear 
 drop if ctry11nm!="England"
 drop ctry11nm ctry11cd fid
 rename msoa11cd code
 rename msoa11nm label
 drop oa11cd oac11cd oac11nm lsoa11cd lsoa11nm soac11cd soac11nm
-merge m:1 code using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+merge m:1 code using "/Users/maxvo/Documents/Job applications stuff/WPI.dta", nogenerate
 gen one = 1
 bys label: gen number=sum(one)
 drop if number!=1
 drop one number
 drop if lifeexpectancyatbirthformales==.
-save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+save "/Users/maxvo/Documents/Job applications stuff/WPI.dta", replace
 
 
 *CONVERTING SUBGROUP TYPE TO SUPERGROUP TYPE (i.e., Affluent Rural --> Affluent England)
 *source https://www.ons.gov.uk/methodology/geography/geographicalproducts/areaclassifications/2011areaclassifications/abouttheareaclassifications
 
-import delimited "/Users/areaximus/Downloads/933be88d.csv", varnames(1) clear 
-merge 1:m laccd using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+import delimited "/Users/maxvo/Downloads/933be88d.csv", varnames(1) clear 
+merge 1:m laccd using "/Users/maxvo/Documents/Job applications stuff/WPI.dta", nogenerate
 drop if lifeexpectancyatbirthformales==.
-save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+save "/Users/maxvo/Documents/Job applications stuff/WPI.dta", replace
 
 
 *MERGING POPULATION ETHNICITY/RELIGION STATISTICS 
 *source https://data.catchmentbasedapproach.org/datasets/theriverstrust::population-statistics-england-msoa-level/about
 
-import delimited "/Users/areaximus/Downloads/Population_Statistics_England_MSOA_level.csv", varnames(1) clear 
+import delimited "/Users/maxvo/Downloads/Population_Statistics_England_MSOA_level.csv", varnames(1) clear 
 rename msoa11cd code
 rename msoa11nm label
-merge 1:1 code label using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+merge 1:1 code label using "/Users/maxvo/Documents/Job applications stuff/WPI.dta", nogenerate
 drop if lifeexpectancyatbirthformales==.
 
 rename lifeexpectancyatbirthformales life_males
@@ -63,7 +63,7 @@ drop reg_name
 
 order label region life_males life_females msoa_km2 b1 all_ethnic whitebrit whiteother mixwhcarib mixwhafric mixwhasian mix_other asian_ind asian_pak asian_ban asian_chi asianother blackafric blackcarib blackother other b2 all_relign christian buddhist hindu jewish muslim sikh otherrelig norelign notstated b3 all_ages n_0_3 n_4_11 n_12_18 n_19_29 n_30_39 n_40_49 n_50_64 n_65_74 n_75_84 n_85plus b4
 
-save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+save "/Users/maxvo/Documents/Job applications stuff/WPI.dta", replace
 
 
 *GENERATING ETHNICITY VARIABLES
