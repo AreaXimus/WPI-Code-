@@ -1,0 +1,188 @@
+*ORIGINAL DATASET
+import delimited "/Users/areaximus/Downloads/LE at birth 2015 to 2019.csv", varnames(3) numericcols(3 4) clear 
+save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+
+
+*CLASSIFYING MSOA BY RURAL OR URBAN
+*source https://www.data.gov.uk/dataset/9c0e093d-d267-4eb8-90d8-54475ab4d1ff/rural-urban-classification-2011-of-middle-layer-super-output-areas-in-england-and-wales
+
+import delimited "/Users/areaximus/Downloads/Rural_Urban_Classification_(2011)_of_Middle_Layer_Super_Output_Areas_in_England_and_Wales.csv", clear 
+rename msoa11cd code
+rename msoa11nm label
+merge 1:1 code label using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+
+
+*CLASSIFYING MSOA BY REGION AND SUBGROUP 
+*source https://geoportal.statistics.gov.uk/datasets/fe6c55f0924b4734adf1cf7104a0173e_0/explore
+
+import delimited "/Users/areaximus/Downloads/Output_Area_to_LSOA_to_MSOA_to_Local_Authority_District_(December_2017)_Lookup_with_Area_Classifications_in_Great_Britain.csv", clear 
+drop if ctry11nm!="England"
+drop ctry11nm ctry11cd fid
+rename msoa11cd code
+rename msoa11nm label
+drop oa11cd oac11cd oac11nm lsoa11cd lsoa11nm soac11cd soac11nm
+merge m:1 code using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+gen one = 1
+bys label: gen number=sum(one)
+drop if number!=1
+drop one number
+drop if lifeexpectancyatbirthformales==.
+save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+
+
+*CONVERTING SUBGROUP TYPE TO SUPERGROUP TYPE (i.e., Affluent Rural --> Affluent England)
+*source https://www.ons.gov.uk/methodology/geography/geographicalproducts/areaclassifications/2011areaclassifications/abouttheareaclassifications
+
+import delimited "/Users/areaximus/Downloads/933be88d.csv", varnames(1) clear 
+merge 1:m laccd using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+drop if lifeexpectancyatbirthformales==.
+save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+
+
+*MERGING POPULATION ETHNICITY/RELIGION STATISTICS 
+*source https://data.catchmentbasedapproach.org/datasets/theriverstrust::population-statistics-england-msoa-level/about
+
+import delimited "/Users/areaximus/Downloads/Population_Statistics_England_MSOA_level.csv", varnames(1) clear 
+rename msoa11cd code
+rename msoa11nm label
+merge 1:1 code label using "/Users/areaximus/Documents/Job applications stuff/WPI.dta", nogenerate
+drop if lifeexpectancyatbirthformales==.
+
+rename lifeexpectancyatbirthformales life_males
+rename lifeexpectancyatbirthforfemales life_females
+
+drop msoa11nm areaname la_code20 la_name20 sgcd sgnm gpcd gpnm laccd lacnm lad17cd lad17nm rgn11cd rgn11nm ruc11 ruc11cd shape_length shape_area reg_code code fid //drop obsolete 
+
+foreach x in 1 2 3 4 {
+	gen b`x'=.
+}
+
+encode reg_name, generate(region)
+drop reg_name
+
+order label region life_males life_females msoa_km2 b1 all_ethnic whitebrit whiteother mixwhcarib mixwhafric mixwhasian mix_other asian_ind asian_pak asian_ban asian_chi asianother blackafric blackcarib blackother other b2 all_relign christian buddhist hindu jewish muslim sikh otherrelig norelign notstated b3 all_ages n_0_3 n_4_11 n_12_18 n_19_29 n_30_39 n_40_49 n_50_64 n_65_74 n_75_84 n_85plus b4
+
+save "/Users/areaximus/Documents/Job applications stuff/WPI.dta", replace
+
+
+*GENERATING ETHNICITY VARIABLES
+
+gen white_ = whitebrit + whiteother 
+gen white = 10 * white_ / all_ethnic
+
+gen indian = 10 * asian_ind / all_ethnic 
+
+gen banpak_ = asian_pak + asian_ban 
+gen banpak = 10 * banpak_ / all_ethnic 
+
+gen subcontinent_ = asian_ind + asian_pak + asian_ban
+gen subcontinent = 10 * subcontinent_ / all_ethnic
+
+gen asian_ = asian_chi + asianother 
+gen asian = 10 * asian_ / all_ethnic 
+
+gen black_ = blackafric + blackcarib + blackother 
+gen black = 10 * black_ / all_ethnic 
+
+gen b5=.
+
+drop white_ subcontinent_ asian_ black_ banpak_
+
+
+*GENERATING RELIGION VARIABLES
+
+foreach x in christian buddhist hindu jewish muslim sikh otherrelig norelign {
+	gen `x'_ = 10 * `x' / all_relign
+} 
+su christian_ buddhist_ hindu_ jewish_ muslim_ sikh_ otherrelig_ norelign_
+drop buddhist_ otherrelig_ //ignore if maximum MSOA population below 25% (buddhist at 9%, other at 8%)
+
+
+*GENERATING REGION DUMMIES
+
+gen b6=. 
+foreach x in east east_mid london north_east north_west south_east south_west west_mid yorkshire {
+	gen `x' = 0
+}
+
+local a east east_mid london north_east north_west south_east south_west west_mid yorkshire
+forvalues y = 1/9 {
+		local x: word `y' of `a'
+		replace `x' = 1 if region == `y'
+}
+
+
+
+**difference from London mean
+bys region: su life_males // London mean is 80.76297
+gen life_males_london = life_males - 80.76297
+
+bys region: su life_females // 84.8553
+gen life_females_london = life_females - 84.8553
+
+graph hbar (mean) life_males_london (mean) life_females_london if london==0, over(region)
+
+
+
+*GENERATING AGE GROUPS
+gen children_ = n_0_3 + n_4_11 + n_12_18
+gen children = 10 * children_ / all_ages
+
+gen youngadult_ = n_19_29 + n_30_39
+gen youngadult = 10 * youngadult_ / all_ages
+
+gen oldadult_ = n_40_49 + n_50_64
+gen oldadult = 10 * oldadult_ / all_ages
+
+gen elderly_ = n_65_74 + n_75_84 + n_85plus
+gen elderly = 10 * elderly_ / all_ages
+
+drop children_ youngadult_ oldadult_ elderly_ 
+
+
+
+*REGRESSION BY REGION 
+
+reg life_males east east_mid north_east north_west south_east south_west west_mid yorkshire, vce(robust) // using London as default. All regions lower, notably East Midlands, North East, North West, West Midlands, Yorkshire and the Humber
+
+reg life_females east east_mid north_east north_west south_east south_west west_mid yorkshire, vce(robust) // using London as default. All regions lower, notably East Midlands, North East, North West, West Midlands, Yorkshire and the Humber
+
+
+
+*REGRESSION CHARTS BY RACE/RELIGION
+
+*reg life_males subcontinent asian black muslim_, vce(robust)
+reg life_males banpak indian asian black muslim_, vce(robust)
+estimates store l_m
+
+*reg life_females subcontinent asian black muslim_, vce(robust)
+reg life_females banpak indian asian black muslim_, vce(robust)
+estimates store l_f 
+
+coefplot l_m l_f, xline(0) drop(_cons)
+*coefplot l_m l_f, xline(0) drop(_cons) recast(bar) barwidt(0.3) ciopts(recast(rcap)) citop // for bar chart version
+
+
+
+*DISTRICT SIZE EFFECT 
+gen area = ln(msoa_km2)
+twoway scatter life_males area, msize(vtiny) || lfit life_males area, saving(graph1, replace)
+twoway scatter life_females area, msize(vtiny) || lfit life_females area, saving(graph2, replace)
+graph combine graph1.gph graph2.gph, ysize(3)
+
+reg life_males area, vce(robust)
+reg life_females area, vce(robust)
+
+
+
+*FINDING MSOA-POPULATION-CORRECTED LIFE EXPECTANCES
+gen pop_correct_m = life_males * all_ages
+gen pop_correct_f = life_females * all_ages
+su all_ages
+
+gen pop_corr_m = pop_correct_m / 8279.59
+gen pop_corr_f = pop_correct_f / 8279.59
+
+su pop_corr_m pop_corr_f
+su life_males life_females //true life expectancy moderately lower than mean msoa life expectancy 
